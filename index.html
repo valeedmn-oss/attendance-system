@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم جامع حضور و غیاب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Vazirmatn', sans-serif;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.4s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .status-present { background: linear-gradient(135deg, #10b981, #059669); }
+        .status-justified { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .status-late { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .status-absent { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-lg border-b-4 border-blue-500">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <span class="text-4xl ml-3">🏫</span>
+                    سیستم جامع حضور و غیاب
+                </h1>
+                <div class="text-sm text-gray-600">
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8">
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-xl shadow-lg mb-8 overflow-hidden">
+            <div class="flex border-b">
+                <button id="attendanceTab" class="flex-1 py-4 px-6 text-center font-semibold text-blue-600 bg-blue-50 border-b-2 border-blue-500 transition-all duration-200">
+                    📋 حضور و غیاب
+                </button>
+                <button id="membersTab" class="flex-1 py-4 px-6 text-center font-semibold text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200">
+                    👤 مدیریت اعضا
+                </button>
+                <button id="reportsTab" class="flex-1 py-4 px-6 text-center font-semibold text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200">
+                    📊 گزارشات
+                </button>
+            </div>
+        </div>
+
+        <!-- Attendance Section -->
+        <div id="attendanceSection" class="fade-in">
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Member List for Attendance -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="text-2xl ml-2">✅</span>
+                        ثبت حضور و غیاب
+                    </h2>
+                    <div id="attendanceList" class="space-y-3">
+                        <!-- Members will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Today's Summary -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="text-2xl ml-2">📈</span>
+                        خلاصه امروز
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-green-800 font-semibold">حاضر</span>
+                                <span id="presentCount" class="text-2xl font-bold text-green-600">0</span>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-blue-800 font-semibold">غیبت موجه</span>
+                                <span id="justifiedCount" class="text-2xl font-bold text-blue-600">0</span>
+                            </div>
+                        </div>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-yellow-800 font-semibold">تاخیر</span>
+                                <span id="lateCount" class="text-2xl font-bold text-yellow-600">0</span>
+                            </div>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-red-800 font-semibold">غایب</span>
+                                <span id="absentCount" class="text-2xl font-bold text-red-600">0</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-800 font-semibold">کل اعضا</span>
+                                <span id="totalCount" class="text-2xl font-bold text-gray-600">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members Management Section -->
+        <div id="membersSection" class="hidden">
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Add Member Form -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="text-2xl ml-2">➕</span>
+                        افزودن عضو جدید
+                    </h2>
+                    <form id="addMemberForm" class="space-y-4">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">نام</label>
+                                <input type="text" id="memberFirstName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="نام" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">نام خانوادگی</label>
+                                <input type="text" id="memberLastName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="نام خانوادگی" required>
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">کد ملی</label>
+                                <input type="text" id="memberNationalId" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="کد ملی" maxlength="10">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">شماره تماس</label>
+                                <input type="tel" id="memberPhone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="09123456789">
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">شماره تماس والدین</label>
+                                <input type="tel" id="memberParentPhone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="شماره والدین">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">سال ورودی</label>
+                                <input type="number" id="memberEntryYear" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="1403" min="1380" max="1450">
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">وضعیت پرداخت شهریه</label>
+                                <select id="memberTuitionStatus" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                                    <option value="">انتخاب کنید</option>
+                                    <option value="paid">پرداخت شده</option>
+                                    <option value="pending">در انتظار پرداخت</option>
+                                    <option value="partial">پرداخت جزئی</option>
+                                    <option value="exempt">معاف</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">وضعیت تعهدنامه</label>
+                                <select id="memberCommitmentStatus" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                                    <option value="">انتخاب کنید</option>
+                                    <option value="signed">امضا شده</option>
+                                    <option value="pending">در انتظار امضا</option>
+                                    <option value="not_required">نیاز نیست</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">توضیحات</label>
+                            <textarea id="memberNotes" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" placeholder="توضیحات اضافی..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105">
+                            ➕ افزودن عضو
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Members List -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="text-2xl ml-2">👥</span>
+                        لیست اعضا
+                    </h2>
+                    <div id="membersList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Members will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div id="reportsSection" class="hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <span class="text-2xl ml-2">📊</span>
+                    گزارش حضور و غیاب
+                </h2>
+                <div class="mb-6 grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">سال</label>
+                        <select id="reportYear" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <!-- Years will be populated -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">ماه</label>
+                        <select id="reportMonth" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="1">فروردین</option>
+                            <option value="2">اردیبهشت</option>
+                            <option value="3">خرداد</option>
+                            <option value="4">تیر</option>
+                            <option value="5">مرداد</option>
+                            <option value="6">شهریور</option>
+                            <option value="7">مهر</option>
+                            <option value="8">آبان</option>
+                            <option value="9">آذر</option>
+                            <option value="10">دی</option>
+                            <option value="11">بهمن</option>
+                            <option value="12">اسفند</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">روز</label>
+                        <select id="reportDay" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <!-- Days will be populated -->
+                        </select>
+                    </div>
+                </div>
+                <button id="generateReport" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200">
+                    📋 تولید گزارش
+                </button>
+                <div id="reportContent" class="mt-6 space-y-4">
+                    <!-- Report content will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Details Modal -->
+    <div id="memberModal" class="modal hidden">
+        <div class="modal-content w-full max-w-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">جزئیات عضو</h3>
+                <button id="closeMemberModal" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+            </div>
+            <div id="memberDetails">
+                <!-- Member details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Persian date utilities
+        const persianMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+
+        function toPersianDate(date) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            return date.toLocaleDateString('fa-IR', options);
+        }
+
+        function getCurrentPersianDate() {
+            const now = new Date();
+            const persianDate = new Intl.DateTimeFormat('fa-IR-u-nu-latn').format(now).split('/');
+            return {
+                year: parseInt(persianDate[0]),
+                month: parseInt(persianDate[1]),
+                day: parseInt(persianDate[2])
+            };
+        }
+
+        // Data storage
+        let members = JSON.parse(localStorage.getItem('members')) || [];
+        let attendance = JSON.parse(localStorage.getItem('attendance')) || {};
+
+        // DOM elements
+        const attendanceTab = document.getElementById('attendanceTab');
+        const membersTab = document.getElementById('membersTab');
+        const reportsTab = document.getElementById('reportsTab');
+        const attendanceSection = document.getElementById('attendanceSection');
+        const membersSection = document.getElementById('membersSection');
+        const reportsSection = document.getElementById('reportsSection');
+        const addMemberForm = document.getElementById('addMemberForm');
+        const currentDateSpan = document.getElementById('currentDate');
+        const memberModal = document.getElementById('memberModal');
+        const closeMemberModal = document.getElementById('closeMemberModal');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentDate();
+            renderAttendanceList();
+            renderMembersList();
+            updateSummary();
+            initializeReportSelectors();
+        });
+
+        // Tab switching
+        attendanceTab.addEventListener('click', () => switchTab('attendance'));
+        membersTab.addEventListener('click', () => switchTab('members'));
+        reportsTab.addEventListener('click', () => switchTab('reports'));
+
+        function switchTab(tab) {
+            // Reset tab styles
+            [attendanceTab, membersTab, reportsTab].forEach(t => {
+                t.className = 'flex-1 py-4 px-6 text-center font-semibold text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200';
+            });
+
+            // Hide all sections
+            [attendanceSection, membersSection, reportsSection].forEach(s => {
+                s.classList.add('hidden');
+            });
+
+            // Show selected tab and section
+            if (tab === 'attendance') {
+                attendanceTab.className = 'flex-1 py-4 px-6 text-center font-semibold text-blue-600 bg-blue-50 border-b-2 border-blue-500 transition-all duration-200';
+                attendanceSection.classList.remove('hidden');
+                attendanceSection.classList.add('fade-in');
+            } else if (tab === 'members') {
+                membersTab.className = 'flex-1 py-4 px-6 text-center font-semibold text-blue-600 bg-blue-50 border-b-2 border-blue-500 transition-all duration-200';
+                membersSection.classList.remove('hidden');
+                membersSection.classList.add('fade-in');
+            } else if (tab === 'reports') {
+                reportsTab.className = 'flex-1 py-4 px-6 text-center font-semibold text-blue-600 bg-blue-50 border-b-2 border-blue-500 transition-all duration-200';
+                reportsSection.classList.remove('hidden');
+                reportsSection.classList.add('fade-in');
+            }
+        }
+
+        // Update current date
+        function updateCurrentDate() {
+            const now = new Date();
+            currentDateSpan.textContent = toPersianDate(now);
+        }
+
+        // Initialize report selectors
+        function initializeReportSelectors() {
+            const currentPersian = getCurrentPersianDate();
+            const yearSelect = document.getElementById('reportYear');
+            const monthSelect = document.getElementById('reportMonth');
+            const daySelect = document.getElementById('reportDay');
+
+            // Populate years
+            for (let year = currentPersian.year - 5; year <= currentPersian.year + 1; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year === currentPersian.year) option.selected = true;
+                yearSelect.appendChild(option);
+            }
+
+            // Set current month
+            monthSelect.value = currentPersian.month;
+
+            // Populate days
+            function updateDays() {
+                daySelect.innerHTML = '';
+                const daysInMonth = 31; // Simplified - in real app would calculate based on Persian calendar
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const option = document.createElement('option');
+                    option.value = day;
+                    option.textContent = day;
+                    if (day === currentPersian.day) option.selected = true;
+                    daySelect.appendChild(option);
+                }
+            }
+
+            updateDays();
+            monthSelect.addEventListener('change', updateDays);
+            yearSelect.addEventListener('change', updateDays);
+        }
+
+        // Add member
+        addMemberForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const firstName = document.getElementById('memberFirstName').value.trim();
+            const lastName = document.getElementById('memberLastName').value.trim();
+            const nationalId = document.getElementById('memberNationalId').value.trim();
+            const phone = document.getElementById('memberPhone').value.trim();
+            const parentPhone = document.getElementById('memberParentPhone').value.trim();
+            const entryYear = document.getElementById('memberEntryYear').value;
+            const tuitionStatus = document.getElementById('memberTuitionStatus').value;
+            const commitmentStatus = document.getElementById('memberCommitmentStatus').value;
+            const notes = document.getElementById('memberNotes').value.trim();
+
+            if (firstName && lastName) {
+                const newMember = {
+                    id: Date.now(),
+                    firstName: firstName,
+                    lastName: lastName,
+                    fullName: `${firstName} ${lastName}`,
+                    nationalId: nationalId,
+                    phone: phone,
+                    parentPhone: parentPhone,
+                    entryYear: entryYear,
+                    tuitionStatus: tuitionStatus,
+                    commitmentStatus: commitmentStatus,
+                    notes: notes,
+                    joinDate: toPersianDate(new Date())
+                };
+
+                members.push(newMember);
+                localStorage.setItem('members', JSON.stringify(members));
+                
+                // Reset form
+                addMemberForm.reset();
+                
+                // Update displays
+                renderMembersList();
+                renderAttendanceList();
+                updateSummary();
+
+                showNotification('عضو جدید با موفقیت اضافه شد! ✅', 'success');
+            }
+        });
+
+        // Render members list
+        function renderMembersList() {
+            const membersList = document.getElementById('membersList');
+            
+            if (members.length === 0) {
+                membersList.innerHTML = '<p class="text-gray-500 text-center py-8">هنوز عضوی اضافه نشده است</p>';
+                return;
+            }
+
+            membersList.innerHTML = members.map(member => `
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer" onclick="showMemberDetails(${member.id})">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800 text-lg">${member.fullName}</h3>
+                            <p class="text-sm text-gray-600">کد ملی: ${member.nationalId || 'ثبت نشده'}</p>
+                            <p class="text-sm text-gray-600">تماس: ${member.phone || 'ثبت نشده'}</p>
+                            <div class="flex items-center mt-2 space-x-2 space-x-reverse">
+                                <span class="px-2 py-1 text-xs rounded-full ${getTuitionStatusClass(member.tuitionStatus)}">
+                                    ${getTuitionStatusText(member.tuitionStatus)}
+                                </span>
+                                <span class="px-2 py-1 text-xs rounded-full ${getCommitmentStatusClass(member.commitmentStatus)}">
+                                    ${getCommitmentStatusText(member.commitmentStatus)}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                            <button onclick="event.stopPropagation(); showMemberDetails(${member.id})" class="text-blue-500 hover:text-blue-700 transition-colors duration-200">
+                                👁️
+                            </button>
+                            <button onclick="event.stopPropagation(); removeMember(${member.id})" class="text-red-500 hover:text-red-700 transition-colors duration-200">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Status helper functions
+        function getTuitionStatusClass(status) {
+            const classes = {
+                'paid': 'bg-green-100 text-green-800',
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'partial': 'bg-orange-100 text-orange-800',
+                'exempt': 'bg-blue-100 text-blue-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function getTuitionStatusText(status) {
+            const texts = {
+                'paid': 'پرداخت شده',
+                'pending': 'در انتظار',
+                'partial': 'جزئی',
+                'exempt': 'معاف'
+            };
+            return texts[status] || 'نامشخص';
+        }
+
+        function getCommitmentStatusClass(status) {
+            const classes = {
+                'signed': 'bg-green-100 text-green-800',
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'not_required': 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function getCommitmentStatusText(status) {
+            const texts = {
+                'signed': 'امضا شده',
+                'pending': 'در انتظار',
+                'not_required': 'نیاز نیست'
+            };
+            return texts[status] || 'نامشخص';
+        }
+
+        // Show member details modal
+        function showMemberDetails(memberId) {
+            const member = members.find(m => m.id === memberId);
+            if (!member) return;
+
+            // Calculate attendance statistics
+            const stats = calculateMemberStats(memberId);
+
+            const memberDetails = document.getElementById('memberDetails');
+            memberDetails.innerHTML = `
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h4 class="text-lg font-semibold text-gray-800 border-b pb-2">اطلاعات شخصی</h4>
+                        <div class="space-y-2">
+                            <p><span class="font-semibold">نام کامل:</span> ${member.fullName}</p>
+                            <p><span class="font-semibold">کد ملی:</span> ${member.nationalId || 'ثبت نشده'}</p>
+                            <p><span class="font-semibold">شماره تماس:</span> ${member.phone || 'ثبت نشده'}</p>
+                            <p><span class="font-semibold">تماس والدین:</span> ${member.parentPhone || 'ثبت نشده'}</p>
+                            <p><span class="font-semibold">سال ورودی:</span> ${member.entryYear || 'ثبت نشده'}</p>
+                            <p><span class="font-semibold">تاریخ عضویت:</span> ${member.joinDate}</p>
+                        </div>
+                        
+                        <h4 class="text-lg font-semibold text-gray-800 border-b pb-2 mt-6">وضعیت اداری</h4>
+                        <div class="space-y-2">
+                            <p><span class="font-semibold">شهریه:</span> 
+                                <span class="px-2 py-1 text-xs rounded-full ${getTuitionStatusClass(member.tuitionStatus)}">
+                                    ${getTuitionStatusText(member.tuitionStatus)}
+                                </span>
+                            </p>
+                            <p><span class="font-semibold">تعهدنامه:</span> 
+                                <span class="px-2 py-1 text-xs rounded-full ${getCommitmentStatusClass(member.commitmentStatus)}">
+                                    ${getCommitmentStatusText(member.commitmentStatus)}
+                                </span>
+                            </p>
+                        </div>
+                        
+                        ${member.notes ? `
+                            <h4 class="text-lg font-semibold text-gray-800 border-b pb-2 mt-6">توضیحات</h4>
+                            <p class="text-gray-700 bg-gray-50 p-3 rounded-lg">${member.notes}</p>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h4 class="text-lg font-semibold text-gray-800 border-b pb-2">آمار حضور و غیاب</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-green-600">${stats.present}</div>
+                                <div class="text-sm text-green-800">حاضر</div>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-blue-600">${stats.justified}</div>
+                                <div class="text-sm text-blue-800">موجه</div>
+                            </div>
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-yellow-600">${stats.late}</div>
+                                <div class="text-sm text-yellow-800">تاخیر</div>
+                            </div>
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-red-600">${stats.absent}</div>
+                                <div class="text-sm text-red-800">غایب</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h5 class="font-semibold text-gray-800 mb-2">خلاصه</h5>
+                            <p class="text-sm text-gray-600">کل جلسات: ${stats.total}</p>
+                            <p class="text-sm text-gray-600">درصد حضور: ${stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%</p>
+                            <p class="text-sm text-gray-600">کل غیبت‌ها: ${stats.absent + stats.late}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            memberModal.classList.remove('hidden');
+        }
+
+        // Calculate member statistics
+        function calculateMemberStats(memberId) {
+            let present = 0, justified = 0, late = 0, absent = 0;
+            
+            Object.values(attendance).forEach(dayAttendance => {
+                const status = dayAttendance[memberId];
+                if (status === 'present') present++;
+                else if (status === 'justified') justified++;
+                else if (status === 'late') late++;
+                else if (status === 'absent') absent++;
+            });
+            
+            return {
+                present,
+                justified,
+                late,
+                absent,
+                total: present + justified + late + absent
+            };
+        }
+
+        // Close modal
+        closeMemberModal.addEventListener('click', () => {
+            memberModal.classList.add('hidden');
+        });
+
+        memberModal.addEventListener('click', (e) => {
+            if (e.target === memberModal) {
+                memberModal.classList.add('hidden');
+            }
+        });
+
+        // Remove member
+        function removeMember(id) {
+            if (confirm('آیا از حذف این عضو اطمینان دارید؟')) {
+                members = members.filter(member => member.id !== id);
+                localStorage.setItem('members', JSON.stringify(members));
+                renderMembersList();
+                renderAttendanceList();
+                updateSummary();
+                showNotification('عضو با موفقیت حذف شد', 'success');
+            }
+        }
+
+        // Render attendance list
+        function renderAttendanceList() {
+            const attendanceList = document.getElementById('attendanceList');
+            const today = new Date().toDateString();
+            
+            if (members.length === 0) {
+                attendanceList.innerHTML = '<p class="text-gray-500 text-center py-8">ابتدا اعضا را اضافه کنید</p>';
+                return;
+            }
+
+            attendanceList.innerHTML = members.map(member => {
+                const status = attendance[today] && attendance[today][member.id];
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-800">${member.fullName}</h3>
+                                <p class="text-sm text-gray-600">کد ملی: ${member.nationalId || 'ثبت نشده'}</p>
+                            </div>
+                            <div class="text-2xl">
+                                ${getStatusIcon(status)}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="markAttendance(${member.id}, 'present')" 
+                                    class="px-3 py-2 rounded-lg font-semibold text-white text-sm transition-all duration-200 ${status === 'present' ? 'status-present' : 'bg-gray-300 hover:bg-green-400'}">
+                                ✅ حاضر
+                            </button>
+                            <button onclick="markAttendance(${member.id}, 'justified')" 
+                                    class="px-3 py-2 rounded-lg font-semibold text-white text-sm transition-all duration-200 ${status === 'justified' ? 'status-justified' : 'bg-gray-300 hover:bg-blue-400'}">
+                                📋 موجه
+                            </button>
+                            <button onclick="markAttendance(${member.id}, 'late')" 
+                                    class="px-3 py-2 rounded-lg font-semibold text-white text-sm transition-all duration-200 ${status === 'late' ? 'status-late' : 'bg-gray-300 hover:bg-yellow-400'}">
+                                ⏰ تاخیر
+                            </button>
+                            <button onclick="markAttendance(${member.id}, 'absent')" 
+                                    class="px-3 py-2 rounded-lg font-semibold text-white text-sm transition-all duration-200 ${status === 'absent' ? 'status-absent' : 'bg-gray-300 hover:bg-red-400'}">
+                                ❌ غایب
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStatusIcon(status) {
+            const icons = {
+                'present': '✅',
+                'justified': '📋',
+                'late': '⏰',
+                'absent': '❌'
+            };
+            return icons[status] || '⏳';
+        }
+
+        // Mark attendance
+        function markAttendance(memberId, status) {
+            const today = new Date().toDateString();
+            
+            if (!attendance[today]) {
+                attendance[today] = {};
+            }
+            
+            attendance[today][memberId] = status;
+            localStorage.setItem('attendance', JSON.stringify(attendance));
+            
+            renderAttendanceList();
+            updateSummary();
+            
+            const member = members.find(m => m.id === memberId);
+            const statusText = {
+                'present': 'حاضر',
+                'justified': 'غیبت موجه',
+                'late': 'تاخیر',
+                'absent': 'غایب'
+            };
+            showNotification(`${member.fullName} به عنوان ${statusText[status]} ثبت شد`, 'success');
+        }
+
+        // Update summary
+        function updateSummary() {
+            const today = new Date().toDateString();
+            const todayAttendance = attendance[today] || {};
+            
+            let presentCount = 0, justifiedCount = 0, lateCount = 0, absentCount = 0;
+            
+            members.forEach(member => {
+                const status = todayAttendance[member.id];
+                if (status === 'present') presentCount++;
+                else if (status === 'justified') justifiedCount++;
+                else if (status === 'late') lateCount++;
+                else if (status === 'absent') absentCount++;
+            });
+            
+            document.getElementById('presentCount').textContent = presentCount;
+            document.getElementById('justifiedCount').textContent = justifiedCount;
+            document.getElementById('lateCount').textContent = lateCount;
+            document.getElementById('absentCount').textContent = absentCount;
+            document.getElementById('totalCount').textContent = members.length;
+        }
+
+        // Generate report
+        document.getElementById('generateReport').addEventListener('click', function() {
+            const year = document.getElementById('reportYear').value;
+            const month = document.getElementById('reportMonth').value;
+            const day = document.getElementById('reportDay').value;
+            
+            if (!year || !month || !day) {
+                showNotification('لطفاً تاریخ کامل را انتخاب کنید', 'error');
+                return;
+            }
+            
+            // Convert Persian date to Gregorian for lookup
+            // This is simplified - in real app would use proper date conversion
+            const selectedDate = new Date().toDateString(); // Simplified for demo
+            const dayAttendance = attendance[selectedDate] || {};
+            
+            const reportContent = document.getElementById('reportContent');
+            
+            if (Object.keys(dayAttendance).length === 0) {
+                reportContent.innerHTML = '<p class="text-gray-500 text-center py-8">برای این تاریخ اطلاعاتی ثبت نشده است</p>';
+                return;
+            }
+            
+            const presentMembers = [];
+            const justifiedMembers = [];
+            const lateMembers = [];
+            const absentMembers = [];
+            
+            members.forEach(member => {
+                const status = dayAttendance[member.id];
+                if (status === 'present') presentMembers.push(member);
+                else if (status === 'justified') justifiedMembers.push(member);
+                else if (status === 'late') lateMembers.push(member);
+                else if (status === 'absent') absentMembers.push(member);
+            });
+            
+            reportContent.innerHTML = `
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="font-bold text-green-800 mb-3">✅ حاضرین (${presentMembers.length})</h3>
+                        ${presentMembers.map(member => `
+                            <div class="text-green-700 py-1 border-b border-green-200 last:border-b-0">
+                                ${member.fullName}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="font-bold text-blue-800 mb-3">📋 غیبت موجه (${justifiedMembers.length})</h3>
+                        ${justifiedMembers.map(member => `
+                            <div class="text-blue-700 py-1 border-b border-blue-200 last:border-b-0">
+                                ${member.fullName}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <h3 class="font-bold text-yellow-800 mb-3">⏰ تاخیر (${lateMembers.length})</h3>
+                        ${lateMembers.map(member => `
+                            <div class="text-yellow-700 py-1 border-b border-yellow-200 last:border-b-0">
+                                ${member.fullName}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h3 class="font-bold text-red-800 mb-3">❌ غایبین (${absentMembers.length})</h3>
+                        ${absentMembers.map(member => `
+                            <div class="text-red-700 py-1 border-b border-red-200 last:border-b-0">
+                                ${member.fullName}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 left-4 px-6 py-3 rounded-lg text-white font-semibold z-50 slide-in ${
+                type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9688c40e602a9dc2',t:'MTc1NDA4NzI3OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
